@@ -1,0 +1,185 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Front Matter
+```{r}
+library(dcData)
+library(tidyverse)
+library(nycflights13)
+```
+
+```{r}
+data("ZipGeography")
+head(ZipGeography)
+
+counties <- ZipGeography %>% 
+  group_by(State) %>%
+  summarize(Num_Counties = n_distinct(County))
+
+data("flights")
+```
+```{r}
+Players <- tibble::tribble(
+  ~first, ~last, ~team, ~position,
+  "Tom", "Brady", "Buccaneers", "Quarterback",
+  "Patrick", "Mahomes", "Chiefs", "Quarterback",
+  "Josh", "Allen", "Bills", "Quarterback",
+  "Josh", "Allen", "Jaguars", "Linebacker"
+)
+
+Pay <- tibble::tribble(
+  ~first, ~last, ~role, ~pay,
+  "Tom", "Brady", "Quarterback", "30M",
+  "Patrick", "Mahomes", "Quarterback", "45M",
+  "Josh", "Allen", "Quarterback", "43M"
+)
+```
+
+```{r}
+left_join(Players, Pay)
+```
+
+```{r}
+inner_join(Pay, Players)
+```
+
+```{r}
+inner_join(Pay, Players, by = c("first" = "first", "last" = "last", "role" = "position"))
+```
+
+```{r}
+left_join(Players, Pay, by = c("first" = "first", "last" = "last", "position" = "role"))
+```
+
+
+```{r}
+flights %>%
+  filter(month == 2) %>%
+  group_by(carrier) %>%
+  summarize(NumFlights = n()) %>%
+  arrange(NumFlights) %>%
+  left_join(airlines, by = "carrier")
+```
+
+```{r}
+flights %>%
+  filter(month == 2, dest == "SFO")
+```
+
+```{r}
+flights %>%
+  filter(month == 2, dest == "RDU") %>%
+  group_by(carrier) %>%
+  summarize(MedArrDelay = median(arr_delay, na.rm=TRUE)) %>%
+  arrange(desc(MedArrDelay)) %>%
+  left_join(airlines)
+```
+
+```{r}
+flights %>%
+  left_join(airports, by = c("dest" = "faa")) %>%
+  filter(lon < -90) %>%
+  group_by(name) %>%
+  summarize(MedArrDelay = median(arr_delay, na.rm=TRUE)) %>%
+  arrange(desc(MedArrDelay)) 
+```
+
+```{r}
+left_join(airports, flights, by = c("faa" = "dest")) %>%
+  filter(lon < -90) %>%
+  group_by(faa) %>%
+  summarize(numFlights = n(), Avg = median(arr_delay, na.rm=TRUE)) %>%
+  arrange(Avg)
+```
+
+
+```{r}
+grade.to.number <- read.csv("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/PSU/Teaching/STAT184/Fall2022/Activities/Activity6/grade-to-number.csv")
+                            
+grades <- read.csv("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/PSU/Teaching/STAT184/Fall2022/Activities/Activity6/grades.csv")
+                   
+courses <- read.csv("~/Library/CloudStorage/OneDrive-ThePennsylvaniaStateUniversity/PSU/Teaching/STAT184/Fall2022/Activities/Activity6/courses.csv")
+```
+
+
+```{r}
+temp_result <- left_join(grades, courses, by = c("classNum" = "classNum")) %>%
+  mutate(Ind = ifelse(grade %in% c("A", "A-", "B+"), 0, 1)) %>%
+  select(dept, grade, Ind) %>%
+  group_by(dept) %>%
+  summarize(fracBelowBPlus = mean(Ind))
+
+temp_result
+```
+
+
+## Task 1
+```{r}
+grades %>% 
+  left_join(courses, by = c("classNum" = "classNum")) %>%
+  group_by(studentID) %>%
+  summarize(ave_enroll = mean(enrolled, na.rm=TRUE)) %>%
+  head(5)
+```
+
+## Task 2
+```{r}
+grades %>% 
+  left_join(courses, by = c("classNum" = "classNum")) %>%
+  left_join(grade.to.number, by = "grade") %>%
+  group_by(dept) %>%
+  summarize(AvgGPA = round(mean(gradepoint, na.rm=TRUE), digits=2)) %>%
+  head(5)
+
+```
+
+## Task 3
+```{r}
+grades %>% 
+  left_join(courses, by = c("classNum" = "classNum")) %>%
+  mutate(below = ifelse(grade %in% c("A+","A", "A-","B+"), 0, 1)) %>% 
+  group_by(dept) %>%
+  summarize(fracBelowBplus = round(mean(below, na.rm=TRUE),2),
+            count = n()) %>%
+  head(5)
+```
+## Another way
+```{r}
+total_grades <-
+  grades %>% 
+  left_join(courses, by = c("classNum" = "classNum")) %>%
+  group_by(dept) %>%
+  summarize(NumGrades = n())
+
+total_bad_grades <- 
+  grades %>% 
+  left_join(courses, by = c("classNum" = "classNum")) %>%
+  filter(!(grade %in% c("A+","A", "A-","B+"))) %>%
+  group_by(dept) %>%
+  summarize(NumBadGrades = n())
+
+
+dept_prop <-
+  left_join(total_grades, total_bad_grades) %>%
+  mutate(Proportion = ifelse(is.na(NumBadGrades), 0, NumBadGrades/NumGrades))
+
+dept_prop
+```
+
+
+
+```{r}
+temp <- grades %>% 
+  left_join(courses, by = c("classNum" = "classNum")) %>%
+  filter(grade %in% c("B+", "A", "A+")) %>%
+  group_by(dept) 
+  mutate(below = ifelse(grade %in% c("A", "A-","B+"), 0, 1)) %>% 
+  arrange(dept)
+
+tempb <- filter(temp, dept == "b")
+table(tempb$grade)/nrow(tempb)
+```
+
+
